@@ -39,7 +39,9 @@ $knownIds = @($b.machineGuid,$b.deviceId,$b.claudeJsonUserId,$b.claudeJsonMachin
 $pcFile = Join-Path $stateDir 'post-clean.json'
 $pc = $null
 if (Test-Path $pcFile) { $pc = Get-Content $pcFile -Raw -Encoding UTF8 | ConvertFrom-Json }
-Write-Output "基线: $($b.auditedAt) · posture=$($b.posture) · 标识 $($knownIds.Count) 个"
+# 关键语义:基线若在清理之后才生成,它记录的就是"新身份"——当前值与基线一致是正确状态,不是残留
+$baselineIsPostClean = $pc -and ([datetime]$b.auditedAt -gt [datetime]$pc.cleanedAt)
+Write-Output "基线: $($b.auditedAt) · posture=$($b.posture) · 标识 $($knownIds.Count) 个$(if($baselineIsPostClean){' · 清理后基线'})"
 if ($pc) { Write-Output "清理记录: $($pc.cleanedAt) · MachineGuid轮换=$($pc.machineGuidRotated)" }
 
 # ---------- 1. 进程/管道 ----------
@@ -55,7 +57,10 @@ if ($pipes) { $warn += "命名管道残留 $($pipes.Count) 条(MCP 桥/扩展通
 $mg = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Cryptography' -Name MachineGuid).MachineGuid
 $did = Sha256Hex $mg
 if ($pc) {
-    if ($pc.machineGuidRotated) {
+    if ($baselineIsPostClean) {
+        if ($mg -eq $b.machineGuid) { $pass += "MachineGuid 与清理后基线一致,device_id=$(Tail4 $did)" }
+        else { $pass += "MachineGuid 清理后又变更过,device_id=$(Tail4 $did)" }
+    } elseif ($pc.machineGuidRotated) {
         if ($mg -ne $b.machineGuid) { $pass += "MachineGuid 已轮换为全新值,device_id=$(Tail4 $did)" }
         else { $fail += '清理记录称已轮换但注册表仍是基线值 —— 可能被还原,重改并重启' }
     } else {
@@ -73,7 +78,7 @@ $cj = Join-Path $env:USERPROFILE '.claude.json'
 if (Test-Path $cj) {
     $t = Get-Content $cj -Raw -Encoding UTF8
     $hits = @($knownIds | Where-Object { $_ -and $t.Contains($_) })
-    if ($hits -and $dirty) { $fail += ".claude.json 仍含基线旧标识 $($hits.Count) 个" }
+    if ($hits -and $dirty -and -not $baselineIsPostClean) { $fail += ".claude.json 仍含基线旧标识 $($hits.Count) 个" }
     elseif ($t -match '"oauthAccount"') { $warn += '.claude.json 已有 oauthAccount —— 确认登的是新号' }
     else { $pass += '.claude.json 无旧标识' }
 }
