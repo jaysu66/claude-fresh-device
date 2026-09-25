@@ -60,9 +60,10 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 ### 登录 checklist(verify PASS 后逐条向用户确认)
 
 1. 电脑已重启(MachineGuid 新值对所有消费方生效)
-2. 代理已切到准备长期使用的新住宅 IP，`curl ip-api.com` 确认 ASN 不是常见机房段
+2. 代理已切到准备长期使用的新住宅 IP —— 跑 `scripts/preflight.ps1 -SetBaseline` 锚定节点；此后每次开 Claude 前先跑 preflight 过 GO
 3. 用没碰过 claude.ai 的浏览器或无痕窗口完成 OAuth —— 不用带旧 cookie 的 profile
 4. 登录后同一账号同时只开一个 CLI 会话(并发上报是实测存在的遥测项)
+5. 使用纪律：用完先关干净所有 Claude 出口面(进程+claude.ai 标签页)再断代理 —— 详见 `references/ip-hygiene.md`
 
 ## 绝对保护清单(任何阶段不得删除)
 
@@ -77,3 +78,5 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 
 - `references/checklist.md` —— 全量检查项 + 每项的证据等级 + 清理/保护判定理由。写报告和 review 清理项时对照它。
 - `references/risk-model.md` —— 客户端上报了什么、服务端能看到什么的分层模型，以及诚实边界(哪些是实证哪些是推断)。
+- `references/ip-hygiene.md` —— 节点/IP 纪律：正确循环、一号一节点、出口验收、泄漏面。
+- `scripts/preflight.ps1` —— 每次开 Claude 前的出口哨兵(GO/NO-GO)，选定节点后 `-SetBaseline` 锚定。
