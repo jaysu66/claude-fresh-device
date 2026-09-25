@@ -1,0 +1,5 @@
+# 本地产物绝不入库:审计基线、日志、临时副本都含真实设备/账号标识
+baseline*.json
+*.log
+fresh-device-state/
+*.local.*
