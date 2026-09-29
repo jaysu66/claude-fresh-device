@@ -59,7 +59,16 @@
 |---|---|---|---|
 | N1 | 出口 IP + ASN | [推断] 风控看 IP 情报库标注（住宅/机房/proxy)，不看 ip-api 的口径；旧号死过的 IP 段勿复用 | 换号必须换 IP；verify 里 IP 未变→WARN |
 | N2 | 系统时区/语言 vs IP 地理 | [推断]+[常识] OAuth 走浏览器，网页端 JS 直接读时区/语言；错位是软信号 | 提示项（改时区更糟，见 SKILL.md 边界） |
+| N4 | 系统代理 vs TUN | [常识]+[余温文章] 系统代理会在 Windows Internet Settings 留 127.0.0.1:端口 记录,只管浏览器;TUN 建虚拟网卡接管全部流量 | 提示项:用 TUN,系统代理保持关闭 |
+| N5 | 残留代理配置(HTTP(S)_PROXY、npm/git proxy、settings.json) | [常识] 历史残留可能让部分流量走另一条线路 | 提示项:人工确认 |
 | N3 | hostname / RegisteredOwner | [实证] `enrollTrustedDevice` 上报 `Claude Code on <hostname> · <platform>`（仅 org 开 policy 时）；RegisteredOwner 不进上报链 | 可选改（hostname 影响系统面较大，自行权衡） |
+
+## M. 记忆与凭据
+
+| 编号 | 检查项 | 依据 | 判定 |
+|---|---|---|---|
+| M1 | `projects/**/memory/*.md`、`CLAUDE.md` 里的邮箱、封号/指纹字样 | [T] memory 索引会被读进新号对话上下文,随请求发出 | **只报告不自动删**:人工审阅,可移入隔离目录;UUID 类多是本地 session id,不是账号标识 |
+| M2 | Windows 凭据管理器里 claude/anthropic 条目 | [I] macOS 有 Keychain 残留(余温文章),Windows 上 Claude Code 令牌在 `.credentials.json`,此项为保险检查 | 有则清 |
 
 ## E. 环境变量
 

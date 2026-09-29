@@ -13,7 +13,7 @@
 ## 正确循环（每次使用）
 
 ```
-1. 开代理 → 2. preflight.ps1 确认出口(必须过)→ 3. 使用 Claude
+1. 开代理 → 2. fresh.ps1 net 确认出口(必须过)→ 3. 使用 Claude
 → 4. 关干净所有 Claude 出口面 → 5. 才允许关代理/切节点
 ```
 
@@ -59,6 +59,6 @@ curl http://ip-api.com/json/?fields=query,isp,as,hosting,proxy,mobile
 OAuth 登录 = CLI 起本地回调 + 浏览器跳 claude.ai，**两个方向的流量都在那一刻产生**。所以登录前：
 
 1. 代理已在目标节点
-2. `preflight.ps1` 过
+2. `fresh.ps1 net` 过 GO
 3. 无痕/干净浏览器里完成整个 OAuth 跳转
 4. 窗口关闭前不切代理

@@ -1,44 +1,55 @@
 # claude-fresh-device
 
-Windows 上 Claude 换号前的三阶段流水线：**只读风险评估 → 有依据的清理 → 复查门禁**。门禁 PASS 之前不登录新号。
+Windows 上给 Claude 换号前做本机卫生的小工具:**只读门禁 → 预览清理 → 执行 → 复查 → 出口检查**。一个脚本 `fresh.ps1`,没有额外依赖(PowerShell 5.1+)。
 
-> 定位说明：这是本机指纹卫生工具，降低新号被关联回旧设备的概率。它不承诺绕过服务端风控 —— 账号来源、支付链、行为建模不在本机控制范围。详见 `references/risk-model.md`。
+> 它只处理"本机残留的旧身份",降低新号被关联回旧设备的概率。不承诺绕过服务端风控,账号来源、支付、使用行为不在它的范围。详见 `references/risk-model.md`。
 
 ## 用法
 
 ```powershell
-# 1. 风险评估(只读,零副作用,输出脱敏报告)
-powershell -ExecutionPolicy Bypass -File scripts/audit.ps1
-
-# 2. 清理(看过报告、确认后执行;含 MachineGuid 轮换需管理员)
-powershell -ExecutionPolicy Bypass -File scripts/clean.ps1
-
-# 3. 重启电脑 → 复查门禁
-powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
+powershell -ExecutionPolicy Bypass -File fresh.ps1 check            # 只读,FAIL 就别登录
+powershell -ExecutionPolicy Bypass -File fresh.ps1 clean            # 预览,不改任何文件
+powershell -ExecutionPolicy Bypass -File fresh.ps1 clean -Apply     # 备份后清理(加 -RotateGuid 需管理员)
+# 重启,再 check,PASS 后:
+powershell -ExecutionPolicy Bypass -File fresh.ps1 net -Anchor      # 锚定长期出口
+powershell -ExecutionPolicy Bypass -File fresh.ps1 net              # 每次开 Claude 前跑,GO 才用
 ```
 
-verify 输出 `[GATE: PASS]` + 登录 checklist 后才允许登录新号。
+清理前先退出 claude.exe、Claude Desktop 和所有 claude.ai 标签页。
 
 ## 原则
 
-- **有依据才清**：每个检查/清理项在 `references/checklist.md` 登记证据等级（实证/实测/推断/常识），没有依据的项不进清单
-- **能保留就保留**：对话历史、项目记忆、技能、浏览器其他站登录态默认不动（浏览器部分首选"换个没碰过 claude.ai 的浏览器/无痕窗口"而不是清库）
-- **脱敏**：audit 输出默认只显示标识符前 8 位；基线文件只存本机 `%USERPROFILE%\.fresh-device\`，已入 .gitignore
-- **有退路**：clean 前全量备份到 `~/.claude/backups/`
+- **有依据才清**:每项标注证据等级 `[E]`客户端实证 `[T]`真机实测 `[I]`推断 `[C]`常识(`references/checklist.md`)
+- **能保留就保留**:skills、agents、plugins、项目 memory、settings、浏览器其他站登录一律不动
+- **默认不动手**:clean 是 dry run,`-Apply` 才执行,执行前全量备份到 `~/.fresh-device/backups/`
+- **不输出隐私**:报告只有计数和文件名,不打印邮箱/UUID/设备 ID;状态文件只存本机
+- **不自动删记忆**:memory 里若有邮箱或封号字样只提示人工审阅
+
+## 测试
+
+`test/run-tests.ps1` 用假 profile(`-SandboxHome`)跑完整流程,不碰真实注册表、进程、网络:
+
+```powershell
+docker run --rm --network none -v "${PWD}:/repo:ro" mcr.microsoft.com/powershell:7.4-ubuntu-22.04 pwsh -NoProfile -File /repo/test/run-tests.ps1
+```
+
+沙盒覆盖文件/JSON 清理与保护清单。注册表、凭据管理器、进程、网络分支只能在真实 Windows 上运行,其中 `check`/`net` 只读。
 
 ## 文件
 
 ```
-SKILL.md                      agent 入口(也可拷到 ~/.claude/skills/claude-fresh-device/ 自动触发)
-scripts/audit.ps1             Stage 1 只读评估 + 基线生成
-scripts/clean.ps1             Stage 2 清理(v3 实战胜出版)
-scripts/verify.ps1            Stage 3 复查门禁
-scripts/scan-sqlite.cjs       可选深挖:SQLite/LevelDB 明文标识(需 node;输出含敏感值,仅本机看)
-scripts/clean-projects-keep-memory.cjs   -WipeHistory 时保留 memory 清会话
-references/checklist.md       全量检查项 + 证据等级 + 清/留判定理由
-references/risk-model.md      上报面/可见面/留痕面分层 + 诚实边界
+fresh.ps1                 check / clean / net
+SKILL.md                  给 AI agent 的入口(可拷到 ~/.claude/skills/claude-fresh-device/)
+references/checklist.md   检查项 + 证据等级 + 保留理由
+references/risk-model.md  谁看到什么 + 诚实边界
+references/ip-hygiene.md  节点/IP 使用纪律
+test/run-tests.ps1        沙盒测试
 ```
 
-## 系统要求
+## 致谢
 
-Windows + PowerShell 5.1+。node 可选（没有也能跑：JSON 修改退化到 PS 兜底/整文件重建）。
+海外环境(时区、IP、代理、手机号、支付)的整体思路来自 [@gkxspace(余温)的教程](https://x.com/gkxspace/status/2101993381303820704)。本项目补充的是 Windows 上的本机指纹检查与清理。
+
+## License
+
+MIT
